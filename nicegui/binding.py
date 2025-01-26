@@ -1,5 +1,6 @@
 import asyncio
 import time
+import weakref
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple, Union
@@ -144,15 +145,38 @@ class BindableProperty:
         return getattr(owner, '___' + self.name)
 
     def __set__(self, owner: Any, value: Any) -> None:
+        from .element import Element
         has_attr = hasattr(owner, '___' + self.name)
         value_changed = has_attr and getattr(owner, '___' + self.name) != value
         if has_attr and not value_changed:
             return
         setattr(owner, '___' + self.name, value)
-        bindable_properties[(id(owner), self.name)] = owner
+        bindable_properties[(id(owner), self.name)] = owner if isinstance(owner, Element) else weakref.proxy(owner, self.remove_from_binding)
         _propagate(owner, self.name)
         if value_changed and self._change_handler is not None:
             self._change_handler(owner, value)
+
+    @classmethod
+    def remove_from_binding(cls, o: Any) -> None:
+        # remove does not work with weakref proxies currently
+        # remove(o)
+        active_links[:] = [
+            (source_obj, source_name, target_obj, target_name, transform)
+            for source_obj, source_name, target_obj, target_name, transform in active_links
+            if source_obj is not o and target_obj is not o
+        ]
+        for key, binding_list in list(bindings.items()):
+            binding_list[:] = [
+                (source_obj, target_obj, target_name, transform)
+                for source_obj, target_obj, target_name, transform in binding_list
+                if source_obj is not o and target_obj is not o
+            ]
+            if not binding_list:
+                del bindings[key]
+
+        for (obj_id, name), obj in list(bindable_properties.items()):
+            if obj is o:
+                del bindable_properties[(obj_id, name)]
 
 
 def remove(objects: Iterable[Any]) -> None:
