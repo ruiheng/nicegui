@@ -151,15 +151,15 @@ class BindableProperty:
         if has_attr and not value_changed:
             return
         setattr(owner, '___' + self.name, value)
-        bindable_properties[(id(owner), self.name)] = owner if isinstance(owner, Element) else weakref.proxy(owner, self.remove_from_binding)
+        bindable_properties[(id(owner), self.name)] = owner if isinstance(owner, Element) else weakref.proxy(owner, self.submit_remove_from_binding_wrapper)
         _propagate(owner, self.name)
         if value_changed and self._change_handler is not None:
             self._change_handler(owner, value)
 
     @classmethod
     def remove_from_binding(cls, o: Any) -> None:
-        # remove does not work with weakref proxies currently
-        # remove(o)
+        # remove(o) does not work with weakref proxies because id(o) will raise exception.
+        # don't use remove_from_binding as weakref's callback, which may cause race condition.
         active_links[:] = [
             (source_obj, source_name, target_obj, target_name, transform)
             for source_obj, source_name, target_obj, target_name, transform in active_links
@@ -177,6 +177,13 @@ class BindableProperty:
         for (obj_id, name), obj in list(bindable_properties.items()):
             if obj is o:
                 del bindable_properties[(obj_id, name)]
+
+    @classmethod
+    def submit_remove_from_binding_wrapper(cls, o: Any) -> None:
+        if core.loop is not None:
+            core.loop.call_soon(cls.remove_from_binding, o)
+        else:
+            cls.remove_from_binding(o)
 
 
 def remove(objects: Iterable[Any]) -> None:
