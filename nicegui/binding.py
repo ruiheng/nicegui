@@ -165,18 +165,27 @@ class BindableProperty:
             for source_obj, source_name, target_obj, target_name, transform in active_links
             if source_obj is not o and target_obj is not o
         ]
-        for key, binding_list in list(bindings.items()):
+
+        bindings_to_remove = []
+        for key, binding_list in bindings.items():
             binding_list[:] = [
                 (source_obj, target_obj, target_name, transform)
                 for source_obj, target_obj, target_name, transform in binding_list
                 if source_obj is not o and target_obj is not o
             ]
             if not binding_list:
-                del bindings[key]
+                bindings_to_remove.append(key)
 
-        for (obj_id, name), obj in list(bindable_properties.items()):
+        for key in bindings_to_remove:
+            del bindings[key]
+
+        bindable_properties_to_remove = []
+        for (obj_id, name), obj in bindable_properties.items():
             if obj is o:
-                del bindable_properties[(obj_id, name)]
+                bindable_properties_to_remove.append((obj_id, name))
+
+        for key in bindable_properties_to_remove:
+            del bindable_properties[key]
 
     @classmethod
     def submit_remove_from_binding_wrapper(cls, o: Any) -> None:
@@ -197,17 +206,27 @@ def remove(objects: Iterable[Any]) -> None:
         for source_obj, source_name, target_obj, target_name, transform in active_links
         if id(source_obj) not in object_ids and id(target_obj) not in object_ids
     ]
-    for key, binding_list in list(bindings.items()):
+
+    bindings_to_remove = []
+    for key, binding_list in bindings.items():
         binding_list[:] = [
             (source_obj, target_obj, target_name, transform)
             for source_obj, target_obj, target_name, transform in binding_list
             if id(source_obj) not in object_ids and id(target_obj) not in object_ids
         ]
         if not binding_list:
-            del bindings[key]
-    for (obj_id, name), obj in list(bindable_properties.items()):
+            bindings_to_remove.append(key)
+
+    for key in bindings_to_remove:
+        del bindings[key]
+
+    bindable_properties_to_remove = []
+    for (obj_id, name), obj in bindable_properties.items():
         if id(obj) in object_ids:
-            del bindable_properties[(obj_id, name)]
+            bindable_properties_to_remove.append((obj_id, name))
+
+    for key in bindable_properties_to_remove:
+        del bindable_properties[key]
 
 
 def reset() -> None:
