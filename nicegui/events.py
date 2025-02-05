@@ -38,6 +38,10 @@ class EventArguments:
 
 
 @dataclass(**KWONLY_SLOTS)
+class TearDownEventArguments(EventArguments):
+    sender: Element
+
+@dataclass(**KWONLY_SLOTS)
 class ObservableChangeEventArguments(EventArguments):
     sender: ObservableCollection
 

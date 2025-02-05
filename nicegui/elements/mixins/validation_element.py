@@ -18,6 +18,10 @@ class ValidationElement(ValueElement):
         super().__init__(**kwargs)
         self._props['error'] = None if validation is None else False  # NOTE: reserve bottom space for error message
 
+    def teardown(self) -> None:
+        self._validation = None
+        super().teardown()
+
     @property
     def validation(self) -> Optional[Union[ValidationFunction, ValidationDict]]:
         """The validation function or dictionary of validation functions."""
