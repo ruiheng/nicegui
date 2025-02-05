@@ -12,6 +12,9 @@ class Classes(list, Generic[T]):
         super().__init__(*args, **kwargs)
         self.element = element
 
+    def teardown(self) -> None:
+        del self.element
+
     def __call__(self,
                  add: Optional[str] = None, *,
                  remove: Optional[str] = None,

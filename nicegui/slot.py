@@ -61,6 +61,10 @@ class Slot:
                 log.exception('Error while pruning slot stacks')
             await asyncio.sleep(10)
 
+    def teardown(self) -> None:
+        del self.parent
+        self.children.clear()
+
 
 def get_task_id() -> int:
     """Return the ID of the current asyncio task."""

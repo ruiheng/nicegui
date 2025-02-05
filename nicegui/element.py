@@ -4,7 +4,7 @@ import inspect
 import re
 from copy import copy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, Iterator, List, Optional, Sequence, Union, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Iterator, List, Optional, Sequence, Union, cast, overload, Callable
 
 from typing_extensions import Self
 
@@ -20,6 +20,7 @@ from .slot import Slot
 from .style import Style
 from .tailwind import Tailwind
 from .version import __version__
+from .logging import log
 
 if TYPE_CHECKING:
     from .client import Client
@@ -60,6 +61,7 @@ class Element(Visibility):
         self._props: Props[Self] = Props(self._default_props, element=cast(Self, self))
         self._markers: List[str] = []
         self._event_listeners: Dict[str, EventListener] = {}
+        self._teardown_listeners: List[events.Handler[events.TearDownEventArguments]] = []
         self._text: Optional[str] = None
         self.slots: Dict[str, Slot] = {}
         self.default_slot = self.add_slot('default')
@@ -379,11 +381,54 @@ class Element(Visibility):
             self.update()
         return self
 
+    def remove_event_listener_callable(self, *func: Callable) -> None:
+        """Remove a callable from the event listeners."""
+        listener_ids_to_remove = []
+        for listener in self._event_listeners.values():
+            if listener.handler in func:
+                listener_ids_to_remove.append(listener.id)
+
+        for listener_id in listener_ids_to_remove:
+            self._event_listeners.pop(listener_id)
+
     def _handle_event(self, msg: Dict) -> None:
         listener = self._event_listeners[msg['listener_id']]
         storage.request_contextvar.set(listener.request)
         args = events.GenericEventArguments(sender=self, client=self.client, args=msg['args'])
         events.handle_event(listener.handler, args)
+
+    def teardown(self) -> None:
+        for listener in self._teardown_listeners:
+            events.handle_event(listener, events.TearDownEventArguments(sender=self))
+
+        self._teardown_listeners.clear()
+
+        self._props.teardown()
+        self._style.teardown()
+        self._classes.teardown()
+        self.tailwind.teardown()
+
+        del self.client
+        del self._props
+        del self._style
+        del self.default_slot
+        del self._classes
+
+        for slot in self.slots.values():
+            slot.teardown()
+        self.slots.clear()
+
+        for listener in self._event_listeners.values():
+            listener.handler = None
+            listener.js_handler = None
+            listener.request = None
+            listener.args = ()
+        self._event_listeners.clear()
+
+    def on_teardown(self, callback: events.Handler[events.TearDownEventArguments]) -> Self:
+        """Add a callback to be invoked when the element is torn down."""
+        self._teardown_listeners.append(callback)
+        return self
 
     def update(self) -> None:
         """Update the element on the client side."""

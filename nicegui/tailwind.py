@@ -184,6 +184,9 @@ class Tailwind:
     def __init__(self, _element: Optional[Element] = None) -> None:
         self.element: Union[PseudoElement, Element] = PseudoElement() if _element is None else _element
 
+    def teardown(self) -> None:
+        del self.element
+
     @overload
     def __call__(self, tailwind: Tailwind) -> Tailwind:
         ...
