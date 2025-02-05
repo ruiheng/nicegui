@@ -41,6 +41,10 @@ class ValueElement(Element):
             self._send_update_on_value_change = True
         self.on(f'update:{self.VALUE_PROP}', handle_change, [None], throttle=throttle)
 
+    def teardown(self) -> None:
+        self._change_handlers = []
+        super().teardown()
+
     def on_value_change(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the value changes."""
         self._change_handlers.append(callback)

@@ -55,6 +55,10 @@ class Client:
         self.instances[self.id] = self
 
         self.elements: Dict[int, Element] = {}
+
+        # save removed here temporarily for a little while, before calling teardown
+        self.removed_elements: Dict[int, tuple[Element, float]] = {}
+
         self.next_element_id: int = 0
         self._waiting_for_connection: asyncio.Event = asyncio.Event()
         self.is_waiting_for_connection: bool = False
@@ -328,6 +332,8 @@ class Client:
             element._deleted = True  # pylint: disable=protected-access
             self.outbox.enqueue_delete(element)
             self.elements.pop(element.id, None)
+            if element.id not in self.removed_elements:
+                self.removed_elements[element.id] = (element, time.time())
 
     def remove_all_elements(self) -> None:
         """Remove all elements from the client."""
@@ -361,6 +367,28 @@ class Client:
         self._temporary_socket_id = socket_id
         yield
         self._temporary_socket_id = None
+
+
+    def cleanup_removed_elements(self) -> None:
+        done_list = []
+        for element, t in self.removed_elements.values():
+            if time.time() - t > 2:
+                try:
+                    element.teardown()
+                except Exception as e:
+                    log.error(f'Error while tearing down element {element.id}: {e}')
+
+                done_list.append(element.id)
+
+        for element_id in done_list:
+            self.removed_elements.pop(element_id, None)
+
+    @classmethod
+    async def cleanup_removed_elements_loop(cls) -> None:
+        while True:
+            for client in cls.instances.values():
+                client.cleanup_removed_elements()
+            await asyncio.sleep(2)
 
     @classmethod
     async def prune_instances(cls) -> None:
