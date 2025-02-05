@@ -43,6 +43,9 @@ class Props(dict, Generic[T]):
         self.element = element
         self._warnings: Dict[str, str] = {}
 
+    def teardown(self) -> None:
+        del self.element
+
     def add_warning(self, prop: str, message: str) -> None:
         """Add a warning message for a prop."""
         self._warnings[prop] = message
