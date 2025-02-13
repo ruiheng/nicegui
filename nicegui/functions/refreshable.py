@@ -127,7 +127,7 @@ class refreshable(Generic[_P, _T]):
         self.targets = [
             target
             for target in self.targets
-            if target.container.client.id in Client.instances and target.container.id in target.container.client.elements
+            if not target.container.is_deleted
         ]
 
 
