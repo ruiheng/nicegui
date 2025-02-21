@@ -66,6 +66,7 @@ class Element(Visibility):
         self.slots: Dict[str, Slot] = {}
         self.default_slot = self.add_slot('default')
         self._deleted: bool = False
+        self.running_context = False # if this is true, this element is running as a context manager
 
         self.client.elements[self.id] = self
         self.parent_slot: Optional[Slot] = None
@@ -167,9 +168,11 @@ class Element(Visibility):
 
     def __enter__(self) -> Self:
         self.default_slot.__enter__()
+        self.running_context = True
         return self
 
     def __exit__(self, *_) -> None:
+        self.running_context = False
         self.default_slot.__exit__(*_)
 
     def __iter__(self) -> Iterator[Element]:

@@ -345,7 +345,7 @@ class Client:
     def cleanup_removed_elements(self) -> None:
         done_list = []
         for element, t in self.removed_elements.values():
-            if time.time() - t > 2:
+            if not element.running_context and time.time() - t > 10: # wait for long enought to make sure any pending update in outbox is done
                 try:
                     element.teardown()
                 except Exception as e:
