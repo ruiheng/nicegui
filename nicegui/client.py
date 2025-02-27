@@ -368,9 +368,14 @@ class Client:
 
 
     def cleanup_removed_elements(self) -> None:
+        max_age = core.sio.eio.ping_interval + core.sio.eio.ping_timeout + self.page.resolve_reconnect_timeout()
         done_list = []
         for element, t in self.removed_elements.values():
-            if not element.running_context and time.time() - t > 10: # wait for long enought to make sure any pending update in outbox is done
+            if not element.running_context and time.time() - t > max_age:
+                if element.id in self.outbox.updates and self.outbox.updates[element.id] is not None:
+                    log.warning(f'Element {element.id} was removed but still in outbox.updates')
+                    continue
+
                 try:
                     element.teardown()
                 except Exception as e:
