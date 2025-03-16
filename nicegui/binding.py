@@ -145,16 +145,22 @@ class BindableProperty:
         return getattr(owner, '___' + self.name)
 
     def __set__(self, owner: Any, value: Any) -> None:
-        from .element import Element
         has_attr = hasattr(owner, '___' + self.name)
         value_changed = has_attr and getattr(owner, '___' + self.name) != value
         if has_attr and not value_changed:
             return
         setattr(owner, '___' + self.name, value)
-        bindable_properties[(id(owner), self.name)] = owner if isinstance(owner, Element) else weakref.proxy(owner, self.submit_remove_from_binding_wrapper)
+        self.register(owner, self.name)
         _propagate(owner, self.name)
         if value_changed and self._change_handler is not None:
             self._change_handler(owner, value)
+
+    @classmethod
+    def register(cls, owner: Any, name: str) -> None:
+        # this logic is useful when you want to implement a custom binding effect
+        from .element import Element
+        if (id(owner), name) not in bindable_properties:
+            bindable_properties[(id(owner), name)] = owner if isinstance(owner, Element) else weakref.proxy(owner, cls.submit_remove_from_binding_wrapper)
 
     @classmethod
     def remove_from_binding(cls, o: Any) -> None:
