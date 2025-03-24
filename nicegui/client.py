@@ -345,6 +345,7 @@ class Client:
         """
         self.remove_all_elements()
         self.outbox.stop()
+        background_tasks.create(self.cleanup_removed_elements(), name='clean-up removed elements of one client')
         del Client.instances[self.id]
         self._deleted = True
 
@@ -367,7 +368,7 @@ class Client:
         self._temporary_socket_id = None
 
 
-    def cleanup_removed_elements(self) -> None:
+    def try_cleanup_removed_elements(self) -> None:
         max_age = core.sio.eio.ping_interval + core.sio.eio.ping_timeout + self.page.resolve_reconnect_timeout()
         done_list = []
         for element, t in self.removed_elements.values():
@@ -386,11 +387,17 @@ class Client:
         for element_id in done_list:
             self.removed_elements.pop(element_id, None)
 
+
+    async def cleanup_removed_elements(self) -> None:
+        while len(self.removed_elements) > 0:
+            self.try_cleanup_removed_elements()
+            await asyncio.sleep(1)
+
     @classmethod
     async def cleanup_removed_elements_loop(cls) -> None:
         while True:
             for client in cls.instances.values():
-                client.cleanup_removed_elements()
+                client.try_cleanup_removed_elements()
             await asyncio.sleep(2)
 
     @classmethod
