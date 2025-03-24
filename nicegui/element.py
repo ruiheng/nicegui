@@ -189,13 +189,13 @@ class Element(Visibility):
         return self.slots[name]
 
     def __enter__(self) -> Self:
-        self.default_slot.__enter__()
         self.running_context = True
+        self.default_slot.__enter__()
         return self
 
     def __exit__(self, *_) -> None:
-        self.running_context = False
         self.default_slot.__exit__(*_)
+        self.running_context = False
 
     def __iter__(self) -> Iterator[Element]:
         for slot in self.slots.values():
