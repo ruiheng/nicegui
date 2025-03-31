@@ -48,8 +48,9 @@ class Outbox:
     def enqueue_update(self, element: Element) -> None:
         """Enqueue an update for the given element."""
         self.client.check_existence()
-        self.updates[element.id] = element
-        self._set_enqueue_event()
+        if not self.client._deleted:
+            self.updates[element.id] = element
+            self._set_enqueue_event()
 
     def enqueue_delete(self, element: Element) -> None:
         """Enqueue a deletion for the given element."""
