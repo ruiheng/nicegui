@@ -26,7 +26,10 @@ class Slot:
         return self
 
     def __exit__(self, *_) -> None:
-        self.get_stack().pop()
+        try:
+            self.get_stack().pop()
+        except IndexError:
+            log.exception('Slot stack is empty')
         self.prune_stack()
 
     def __iter__(self) -> Iterator[Element]:
