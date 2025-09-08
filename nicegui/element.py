@@ -74,7 +74,7 @@ class Element(Visibility):
         self.default_slot = self.add_slot('default')
         self._update_method: Optional[str] = None
         self._deleted: bool = False
-        self.running_context = False # if this is true, this element is running as a context manager
+        self.running_context: int = 0 # if this is true, this element is running as a context manager
 
         self.client.elements[self.id] = self
         self.parent_slot: Optional[Slot] = None
@@ -189,13 +189,13 @@ class Element(Visibility):
         return self.slots[name]
 
     def __enter__(self) -> Self:
-        self.running_context = True
+        self.running_context += 1
         self.default_slot.__enter__()
         return self
 
     def __exit__(self, *_) -> None:
         self.default_slot.__exit__(*_)
-        self.running_context = False
+        self.running_context -= 1
 
     def __iter__(self) -> Iterator[Element]:
         for slot in self.slots.values():

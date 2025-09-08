@@ -376,7 +376,7 @@ class Client:
         max_age = core.sio.eio.ping_interval + core.sio.eio.ping_timeout + self.page.resolve_reconnect_timeout()
         done_list = []
         for element, t in self.removed_elements.values():
-            if not element.running_context and time.time() - t > max_age:
+            if not element.running_context > 0 and time.time() - t > max_age:
                 if element.id in self.outbox.updates and self.outbox.updates[element.id] is not None:
                     log.warning(f'Element {element.id} was removed but still in outbox.updates')
                     continue
