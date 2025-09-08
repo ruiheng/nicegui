@@ -223,9 +223,12 @@ def remove(objects: Iterable[Any]) -> None:
         ]
         if not binding_list:
             del bindings[key]
+    keys_to_remove = []
     for obj_id, name in list(bindable_properties):
         if obj_id in object_ids:
-            del bindable_properties[(obj_id, name)]
+            keys_to_remove.append((obj_id, name))
+    for k in keys_to_remove:
+            del bindable_properties[k]
 
 
 def reset() -> None:
