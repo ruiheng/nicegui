@@ -110,6 +110,52 @@ function logAndEmit(level, message) {
 }
 
 function stringifyEventArgs(args, event_args) {
+  const normalizePath = (path) => path.replace(/\[(\d+)\]/g, ".$1").split(".").filter((p) => p);
+  const isIndex = (segment) => /^\d+$/.test(segment);
+  const setByPath = (target, segments, value) => {
+    let current = target;
+    segments.forEach((segment, idx) => {
+      const key = isIndex(segment) ? Number(segment) : segment;
+      if (idx === segments.length - 1) {
+        current[key] = value;
+        return;
+      }
+      if (!(key in current)) {
+        const nextIsIndex = isIndex(segments[idx + 1]);
+        current[key] = nextIsIndex ? [] : {};
+      }
+      current = current[key];
+    });
+  };
+  const getByPath = (source, segments) => {
+    let current = source;
+    for (const segment of segments) {
+      const key = isIndex(segment) ? Number(segment) : segment;
+      if (current === null || current === undefined) return undefined;
+      current = current[key];
+    }
+    return current;
+  };
+  const pickByWhitelist = (source, whitelist) => {
+    if (!Array.isArray(whitelist) || whitelist.length === 0) return {};
+    const picked = Array.isArray(source) ? [] : {};
+    whitelist.forEach((path) => {
+      if (path === null || path === undefined) return;
+      const segments = normalizePath(String(path));
+      if (!segments.length) return;
+      if (segments[0] === "originalTarget") {
+        try {
+          source.originalTarget.toString();
+        } catch (e) {
+          return;
+        }
+      }
+      const value = getByPath(source, segments);
+      if (value === undefined) return;
+      setByPath(picked, segments, value);
+    });
+    return picked;
+  };
   const sanitizeForJson = (value, seen = new WeakSet()) => {
     if (typeof value === "bigint" || typeof value === "function" || typeof value === "symbol") return undefined;
     if (value === null || typeof value !== "object") return value;
@@ -162,18 +208,22 @@ function stringifyEventArgs(args, event_args) {
     if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
       filtered = arg;
     } else {
-      for (let k in arg) {
-        // ignore "Restricted" fields in Firefox (see #2469)
-        if (k == "originalTarget") {
-          try {
-            arg[k].toString();
-          } catch (e) {
-            continue;
+      const whitelist = event_args === null ? null : event_args[i];
+      if (whitelist === null) {
+        for (let k in arg) {
+          // ignore "Restricted" fields in Firefox (see #2469)
+          if (k == "originalTarget") {
+            try {
+              arg[k].toString();
+            } catch (e) {
+              continue;
+            }
           }
-        }
-        if (event_args === null || event_args[i] === null || event_args[i].includes(k)) {
           filtered[k] = arg[k];
         }
+      } else {
+        const paths = Array.isArray(whitelist) ? whitelist : [whitelist];
+        filtered = pickByWhitelist(arg, paths);
       }
     }
     const optimistic = hasUnsupported(filtered) ? null : tryStringify(filtered);
