@@ -210,7 +210,7 @@ function stringifyEventArgs(args, event_args) {
   args.forEach((arg, i) => {
     if (event_args !== null && i >= event_args.length) return;
     let filtered = {};
-    if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
+    if (typeof arg !== "object" || arg === null) {
       filtered = arg;
     } else {
       const whitelist = event_args === null ? null : event_args[i];
