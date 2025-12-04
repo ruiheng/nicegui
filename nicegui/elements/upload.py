@@ -1,11 +1,11 @@
-from typing import Optional, cast
+from typing import Optional, Sequence, Union, cast
 
 from fastapi import Request
 from starlette.datastructures import UploadFile
 from typing_extensions import Self
 
 from ..defaults import DEFAULT_PROP, resolve_defaults
-from ..events import Handler, MultiUploadEventArguments, UiEventArguments, UploadEventArguments, handle_event
+from ..events import Handler, MultiUploadEventArguments, UiEventArguments, UploadEventArguments, GenericEventArguments, handle_event
 from ..nicegui import app
 from .mixins.disableable_element import DisableableElement
 from .mixins.label_element import LabelElement
@@ -25,7 +25,7 @@ class Upload(LabelElement, DisableableElement, component='upload.js'):
                  on_begin_upload: Optional[Handler[UiEventArguments]] = None,
                  on_upload: Optional[Handler[UploadEventArguments]] = None,
                  on_multi_upload: Optional[Handler[MultiUploadEventArguments]] = None,
-                 on_rejected: Optional[Handler[UiEventArguments]] = None,
+                 on_rejected: Optional[Handler[GenericEventArguments]] = None,
                  label: str = DEFAULT_PROP | '',
                  auto_upload: bool = DEFAULT_PROP | False,
                  ) -> None:
@@ -111,9 +111,11 @@ class Upload(LabelElement, DisableableElement, component='upload.js'):
         self._multi_upload_handlers.append(callback)
         return self
 
-    def on_rejected(self, callback: Handler[UiEventArguments]) -> Self:
+    def on_rejected(self, callback: Handler[GenericEventArguments],
+                   args: Union[None, Sequence[str], Sequence[Optional[Sequence[str]]]] = None
+                    ) -> Self:
         """Add a callback to be invoked when one or more files have been rejected during file selection."""
-        self.on('rejected', lambda: handle_event(callback, UiEventArguments(sender=self, client=self.client)), args=[])
+        self.on('rejected', callback, args)
         return self
 
     def reset(self) -> None:
