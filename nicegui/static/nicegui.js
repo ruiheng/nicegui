@@ -110,6 +110,51 @@ function logAndEmit(level, message) {
 }
 
 function stringifyEventArgs(args, event_args) {
+  const sanitizeForJson = (value, seen = new WeakSet()) => {
+    if (typeof value === "bigint" || typeof value === "function" || typeof value === "symbol") return undefined;
+    if (value === null || typeof value !== "object") return value;
+    if (value instanceof File) {
+      return {
+        name: value.name,
+        size: value.size,
+        type: value.type,
+        lastModified: value.lastModified,
+      };
+    }
+    if (value instanceof Node || value instanceof Window || value instanceof Blob) return undefined;
+    if (seen.has(value)) return undefined;
+    seen.add(value);
+    if (value instanceof Date) return value.toJSON();
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => sanitizeForJson(item, seen))
+        .map((item) => (item === undefined ? null : item));
+    }
+    const sanitized = {};
+    for (const [key, val] of Object.entries(value)) {
+      const sanitizedValue = sanitizeForJson(val, seen);
+      if (sanitizedValue !== undefined) {
+        sanitized[key] = sanitizedValue;
+      }
+    }
+    return sanitized;
+  };
+  const hasUnsupported = (value, seen = new WeakSet()) => {
+    if (typeof value === "bigint" || typeof value === "function" || typeof value === "symbol") return true;
+    if (value === null || typeof value !== "object") return false;
+    if (value instanceof Node || value instanceof Window || value instanceof File || value instanceof Blob) return true;
+    if (seen.has(value)) return true;
+    seen.add(value);
+    if (Array.isArray(value)) return value.some((item) => hasUnsupported(item, seen));
+    return Object.values(value).some((item) => hasUnsupported(item, seen));
+  };
+  const tryStringify = (value) => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  };
   const result = [];
   args.forEach((arg, i) => {
     if (event_args !== null && i >= event_args.length) return;
@@ -131,7 +176,13 @@ function stringifyEventArgs(args, event_args) {
         }
       }
     }
-    result.push(JSON.stringify(filtered, (k, v) => (v instanceof Node || v instanceof Window ? undefined : v)));
+    const optimistic = hasUnsupported(filtered) ? null : tryStringify(filtered);
+    if (optimistic !== null) {
+      result.push(optimistic);
+    } else {
+      const sanitized = sanitizeForJson(filtered);
+      result.push(JSON.stringify(sanitized === undefined ? {} : sanitized));
+    }
   });
   return result;
 }
