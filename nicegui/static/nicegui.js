@@ -110,35 +110,42 @@ function logAndEmit(level, message) {
 }
 
 function stringifyEventArgs(args, event_args) {
-  const normalizePath = (path) => path.replace(/\[(\d+)\]/g, ".$1").split(".").filter((p) => p);
+  const normalizePath = (path) => path.replace(/\[([^\]]+)\]/g, ".$1").split(".").filter((p) => p);
   const isIndex = (segment) => /^\d+$/.test(segment);
-  const setByPath = (target, segments, value) => {
-    let current = target;
-    segments.forEach((segment, idx) => {
-      const key = isIndex(segment) ? Number(segment) : segment;
-      if (idx === segments.length - 1) {
-        current[key] = value;
-        return;
-      }
-      if (!(key in current)) {
-        const nextIsIndex = isIndex(segments[idx + 1]);
-        current[key] = nextIsIndex ? [] : {};
-      }
-      current = current[key];
-    });
-  };
-  const getByPath = (source, segments) => {
-    let current = source;
-    for (const segment of segments) {
-      const key = isIndex(segment) ? Number(segment) : segment;
-      if (current === null || current === undefined) return undefined;
-      current = current[key];
-    }
-    return current;
-  };
+  const isWildcard = (segment) => segment === "*";
   const pickByWhitelist = (source, whitelist) => {
     if (!Array.isArray(whitelist) || whitelist.length === 0) return {};
     const picked = Array.isArray(source) ? [] : {};
+    const copyPath = (dest, src, segments) => {
+      if (!segments.length) return;
+      const [segment, ...rest] = segments;
+      if (isWildcard(segment)) {
+        if (!Array.isArray(src)) return;
+        src.forEach((item, idx) => {
+          if (!rest.length) {
+            dest[idx] = item;
+            return;
+          }
+          if (!dest[idx]) {
+            const nextSeg = rest[0];
+            dest[idx] = isIndex(nextSeg) || isWildcard(nextSeg) ? [] : {};
+          }
+          copyPath(dest[idx], item, rest);
+        });
+      } else {
+        const key = isIndex(segment) ? Number(segment) : segment;
+        if (src === null || src === undefined || !(key in src)) return;
+        if (!rest.length) {
+          dest[key] = src[key];
+          return;
+        }
+        if (!(key in dest)) {
+          const nextSeg = rest[0];
+          dest[key] = isIndex(nextSeg) || isWildcard(nextSeg) ? [] : {};
+        }
+        copyPath(dest[key], src[key], rest);
+      }
+    };
     whitelist.forEach((path) => {
       if (path === null || path === undefined) return;
       const segments = normalizePath(String(path));
@@ -150,9 +157,7 @@ function stringifyEventArgs(args, event_args) {
           return;
         }
       }
-      const value = getByPath(source, segments);
-      if (value === undefined) return;
-      setByPath(picked, segments, value);
+      copyPath(picked, source, segments);
     });
     return picked;
   };
