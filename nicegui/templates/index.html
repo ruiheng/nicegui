@@ -54,10 +54,7 @@
     {% if tailwind %}
     <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/tailwindcss.min.js"></script>
     {% endif %}
-    <script type="module">
-      import * as Vue from "vue";
-      globalThis.Vue = Vue;
-    </script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.5.22/vue.global.prod.js"></script>
     {% if prod_js %}
     <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/quasar.umd.prod.js"></script>
     {% else %}
