@@ -146,6 +146,25 @@ async def test_two_handlers_can_read_file(screen: Screen):
     assert upload_1 == upload_2 == test_path1.read_text(encoding='utf-8')
 
 
+def test_upload_rejected_args_whitelist(screen: Screen):
+    results: list[events.GenericEventArguments] = []
+
+    @ui.page('/')
+    def page():
+        upload = ui.upload(max_file_size=1)
+        upload.on_rejected(results.append, args=['*.file.name', '*.file.size'])
+
+    screen.open('/')
+    screen.find_by_class('q-uploader__input').send_keys(str(test_path1))
+    screen.wait(0.2)
+
+    assert results
+    rejected = results[0].args
+    assert isinstance(rejected, list)
+    assert rejected[0]['file']['name'] == test_path1.name
+    assert rejected[0]['file']['size'] == test_path1.stat().st_size
+
+
 @pytest.mark.parametrize('size', [500, 5_000_000])
 async def test_different_file_sizes(screen: Screen, size: int, tmp_path: Path):
     tmp_file = tmp_path / 'test.txt'
